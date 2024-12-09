@@ -2,6 +2,10 @@
 #include <vector>
 #include <raymath.h>
 
+#if defined(PLATFORM_WEB)
+#include <emscripten/emscripten.h>
+#endif
+
 struct SnakeSegment {
     Vector2 position;
 };
@@ -103,14 +107,17 @@ static void DrawGame(const std::vector<SnakeSegment>& snake, const std::vector<F
 
 int main() {
     InitWindow(800, 600, "Snake Game");
-    SetTargetFPS(60);
 
     std::vector<SnakeSegment> snake;
     std::vector<Food> food;
     std::vector<Obstacle> obstacles;
 
     InitGame(snake, food, obstacles);
+#if defined(PLATFORM_WEB)
+    emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
+#else
 
+    SetTargetFPS(60);
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_R)) {
             InitGame(snake, food, obstacles);
@@ -123,6 +130,8 @@ int main() {
         DrawGame(snake, food, obstacles);
         EndDrawing();
     }
+#endif
+
 
     CloseWindow();
     return 0;
