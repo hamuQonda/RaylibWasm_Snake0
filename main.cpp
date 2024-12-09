@@ -19,6 +19,10 @@ struct Obstacle {
     Vector2 position;
 };
 
+std::vector<SnakeSegment> snake;
+std::vector<Food> food;
+std::vector<Obstacle> obstacles;
+
 Vector2 direction = {};
 float speed = 2.0f;
 bool gameOver = false;
@@ -105,30 +109,33 @@ static void DrawGame(const std::vector<SnakeSegment>& snake, const std::vector<F
     }
 }
 
+
+static void UpdateDrawFrame() {
+    if (IsKeyPressed(KEY_R)) {
+        InitGame(snake, food, obstacles);
+    }
+
+    UpdateGame(snake, food, obstacles);
+
+    BeginDrawing();
+    ClearBackground(BLACK);  // バックグラウンドを黒に設定
+    DrawGame(snake, food, obstacles);
+    EndDrawing();
+}
+
+
 int main() {
     InitWindow(800, 600, "Snake Game");
 
-    std::vector<SnakeSegment> snake;
-    std::vector<Food> food;
-    std::vector<Obstacle> obstacles;
 
     InitGame(snake, food, obstacles);
+
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
 #else
-
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_R)) {
-            InitGame(snake, food, obstacles);
-        }
-
-        UpdateGame(snake, food, obstacles);
-
-        BeginDrawing();
-        ClearBackground(BLACK);  // バックグラウンドを黒に設定
-        DrawGame(snake, food, obstacles);
-        EndDrawing();
+        UpdateDrawFrame();
     }
 #endif
 
