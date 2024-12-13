@@ -7,8 +7,8 @@
 const int screenWidth = 800;
 const int screenHeight = 600;
 const int ballRadius = 5;
-const float ballSpeed = 150.0f; // 毎秒150ピクセル
-const float turnAngle = 360.0f / 24.0f * (PI / 180.0f); // 360度/24をラジアンに変換
+const float ballSpeed = 150.0f; // ボールの移動速度（ピクセル毎秒）
+const float turnAngle = 360.0f / 24.0f * (PI / 180.0f); // 曲がる角度の増分// ラジアンに変換
 const int foodCount = 10;
 const int foodRadius = 5;
 const int rockRadius = 5;
@@ -17,7 +17,7 @@ const int initialBodySegments = 3;
 const int scoreToGrow = 3;
 
 // スネークの頭の初期位置
-Vector2 ballPosition = { screenWidth / 2.0f, screenHeight / 2.0f };
+Vector2 headBallPos = { screenWidth / 3.0f, screenHeight / 3.0f };
 
 // エサの初期位置をランダムに生成
 Vector2 foods[foodCount];
@@ -87,86 +87,91 @@ int main() {
 
     // スネークの体の初期化
     for (int i = 0; i < initialBodySegments; i++) {
-        snakeBody.push_back(ballPosition);
+        snakeBody.push_back(headBallPos);
     }
+
+    bool gameOver = false;
 
     // ゲームループ
     while (!WindowShouldClose()) {
-        // マウス位置の取得
-        Vector2 mousePosition = GetMousePosition();
+        if (!gameOver) {
 
-        // マウスがボールの移動方向に対して左右どちらにあるか判定
-        float side = CheckMouseSide(ballPosition, direction, mousePosition);
+            // マウス位置の取得
+            Vector2 mousePosition = GetMousePosition();
 
-        // 移動方向の回転
-        if (side > 0) {
-            direction = RotateVector(direction, turnAngle); // 右に回転
-        }
-        else if (side < 0) {
-            direction = RotateVector(direction, -turnAngle); // 左に回転
-        }
+            // マウスがボールの移動方向に対して左右どちらにあるか判定
+            float side = CheckMouseSide(headBallPos, direction, mousePosition);
 
-        // ボールの移動（フレームごとの時間を考慮して速度を調整）
-        float deltaTime = GetFrameTime();
-        ballPosition.x += direction.x * ballSpeed * deltaTime;
-        ballPosition.y += direction.y * ballSpeed * deltaTime;
+            // 移動方向の回転
+            if (side > 0) {
+                direction = RotateVector(direction, turnAngle); // 右に回転
+            }
+            else if (side < 0) {
+                direction = RotateVector(direction, -turnAngle); // 左に回転
+            }
 
-        // スネークの体を更新
-        snakeBody.push_front(ballPosition);
-        while (snakeBody.size() > initialBodySegments + segmentsToAdd) {
-            snakeBody.pop_back();
-        }
+            // ボールの移動（フレームごとの時間を考慮して速度を調整）
+            float deltaTime = GetFrameTime();
+            headBallPos.x += direction.x * ballSpeed * deltaTime;
+            headBallPos.y += direction.y * ballSpeed * deltaTime;
 
-        // エサとの衝突判定
-        for (int i = 0; i < foodCount; i++) {
-            if (CheckCollisionCircles(ballPosition, ballRadius, foods[i], foodRadius)) {
-                score++;
-                GenerateRandomFood(foods[i]);
-                if (score % scoreToGrow == 0) {
-                    segmentsToAdd++;
-                     Vector2 newRock;
-                     GenerateRandomRock(newRock);
-                     rocks.push_back(newRock);
+            // スネークの体を更新
+            snakeBody.push_front(headBallPos);
+            while (snakeBody.size() > initialBodySegments + segmentsToAdd) {
+                snakeBody.pop_back();
+            }
+
+            // エサとの衝突判定
+            for (int i = 0; i < foodCount; i++) {
+                if (CheckCollisionCircles(headBallPos, ballRadius, foods[i], foodRadius)) {
+                    score++;
+                    GenerateRandomFood(foods[i]);
+                    if (score % scoreToGrow == 0) {
+                        segmentsToAdd++;
+                         Vector2 newRock;
+                         GenerateRandomRock(newRock);
+                         rocks.push_back(newRock);
+                    }
                 }
             }
-        }
 
-        // 岩との衝突判定
-        for (auto& rock : rocks) {
-            if (CheckCollisionCircles(ballPosition, ballRadius, rock, rockRadius)) {
-                lives--;
-                GenerateRandomRock(rock);
-            }
-        }
-
-        // ゲームオーバー判定
-        if (lives <= 0) {
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, RED);
-            DrawText(TextFormat("Final Score: %d", score), screenWidth / 2 - 100, screenHeight / 2 + 30, 30, DARKGRAY);
-            DrawText("Press R to Retry", screenWidth / 2 - 100, screenHeight / 2 + 70, 20, DARKGRAY);
-
-            EndDrawing();
-
-            // リトライ処理
-            if (IsKeyPressed(KEY_R)) {
-                ballPosition = { screenWidth / 2.0f, screenHeight / 2.0f };
-                score = 0;
-                lives = initialLives;
-                snakeBody.clear();
-                rocks.clear();
-                for (int i = 0; i < initialBodySegments; i++) snakeBody.push_back(ballPosition);
-                for (int i = 0; i < foodCount; i++) GenerateRandomFood(foods[i]);
-                for (int i = 0; i < rockCount; i++) {
-                    Vector2 rock;
+            // 岩との衝突判定
+            for (auto& rock : rocks) {
+                if (CheckCollisionCircles(headBallPos, ballRadius, rock, rockRadius)) {
+                    lives--;
                     GenerateRandomRock(rock);
-                    rocks.push_back(rock);
                 }
             }
 
-            continue;
+            // ゲームオーバー判定
+            if (lives <= 0) {
+                BeginDrawing();
+                ClearBackground(BLACK);
+
+                DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, RED);
+                DrawText(TextFormat("Final Score: %d", score), screenWidth / 2 - 100, screenHeight / 2 + 30, 30, DARKGRAY);
+                DrawText("Press R to Retry", screenWidth / 2 - 100, screenHeight / 2 + 70, 20, DARKGRAY);
+
+                EndDrawing();
+
+                // リトライ処理
+                if (IsKeyPressed(KEY_R)) {
+                    headBallPos = { screenWidth / 2.0f, screenHeight / 2.0f };
+                    score = 0;
+                    lives = initialLives;
+                    snakeBody.clear();
+                    rocks.clear();
+                    for (int i = 0; i < initialBodySegments; i++) snakeBody.push_back(headBallPos);
+                    for (int i = 0; i < foodCount; i++) GenerateRandomFood(foods[i]);
+                    for (int i = 0; i < rockCount; i++) {
+                        Vector2 rock;
+                        GenerateRandomRock(rock);
+                        rocks.push_back(rock);
+                    }
+                }
+
+                gameOver = true;
+            }
         }
 
         // 描画
@@ -177,7 +182,7 @@ int main() {
             DrawCircleV(segment, ballRadius, GREEN);
         }
 
-        DrawCircleV(ballPosition, ballRadius, PINK);
+        DrawCircleV(headBallPos, ballRadius, PINK);
 
         for (int i = 0; i < foodCount; i++) {
             DrawCircleV(foods[i], foodRadius, RED);
