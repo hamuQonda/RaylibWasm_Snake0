@@ -1,145 +1,82 @@
 #include "raylib.h"
-#include <vector>
-#include <raymath.h>
+#include <cmath>
 
-#if defined(PLATFORM_WEB)
-#include <emscripten/emscripten.h>
-#endif
+const int screenWidth = 800;
+const int screenHeight = 600;
+const int ballRadius = 10;
+const float ballSpeed = 5.0f;
+const float turnAngle = 360.0f / 24.0f * (PI / 180.0f); // 360度/24をラジアンに変換
 
-struct SnakeSegment {
-    Vector2 position;
-};
+// スネークの頭の初期位置
+Vector2 ballPosition = { screenWidth / 2.0f, screenHeight / 2.0f };
 
-struct Food {
-    Vector2 position;
-    bool active;
-};
-
-struct Obstacle {
-    Vector2 position;
-};
-
-std::vector<SnakeSegment> snake;
-std::vector<Food> food;
-std::vector<Obstacle> obstacles;
-
-Vector2 direction = {};
-float speed = 2.0f;
-bool gameOver = false;
-int score = 0;
-
-static void InitGame(std::vector<SnakeSegment>& snake, std::vector<Food>& food, std::vector<Obstacle>& obstacles) {
-    snake.clear();
-    food.clear();
-    obstacles.clear();
-    direction = { 1,0 };
-    speed = 2.0f;
-    gameOver = false;
-    score = 0;
-
-    snake.push_back({ {GetScreenWidth() / 8.0f     , GetScreenHeight() / 4.0f} });
-    snake.push_back({ {GetScreenWidth() / 8.0f - 10, GetScreenHeight() / 4.0f} });
-    snake.push_back({ {GetScreenWidth() / 8.0f - 20, GetScreenHeight() / 4.0f} });
-
-    for (int i = 0; i < 10; i++) {
-        food.push_back({ {(float)(rand() % GetScreenWidth()), (float)(rand() % GetScreenHeight())}, true });
-    }
-
-    for (int i = 0; i < 15; i++) {
-        obstacles.push_back({ {(float)(rand() % GetScreenWidth()), (float)(rand() % GetScreenHeight())} });
-    }
+// ボールの移動方向ベクトルに対してマウスカーソルが左右どちらにあるかを判定する関数
+// 返り値: 正の場合は右、負の場合は左、0の場合は同一直線上
+float CheckMouseSide(Vector2 ballPosition, Vector2 direction, Vector2 mousePosition) {
+    Vector2 toMouse = { mousePosition.x - ballPosition.x, mousePosition.y - ballPosition.y };
+    return direction.x * toMouse.y - direction.y * toMouse.x;
 }
 
-static void UpdateGame(std::vector<SnakeSegment>& snake, std::vector<Food>& food, std::vector<Obstacle>& obstacles) {
-    if (gameOver) return;
-
-    Vector2 mousePosition = GetMousePosition();
-    direction = Vector2Normalize(Vector2Subtract(mousePosition, snake.front().position));
-    speed = IsMouseButtonDown(MOUSE_LEFT_BUTTON) ? 3.0f : 2.0f;
-
-    for (int i = (int)snake.size() - 1; i > 0; i--) {
-        snake[i].position = snake[static_cast<std::vector<SnakeSegment, std::allocator<SnakeSegment>>::size_type>(i) - 1].position;
-    }
-
-    snake.front().position.x += direction.x * speed;
-    snake.front().position.y += direction.y * speed;
-
-    for (Food& f : food) {
-        if (f.active && CheckCollisionCircles(snake.front().position, 5, f.position, 5)) {
-            f.active = false;
-            snake.push_back({ {snake.back().position} });
-            food.push_back({ {(float)(rand() % GetScreenWidth()), (float)(rand() % GetScreenHeight())}, true });
-            score++;
-            obstacles.push_back({ {(float)(rand() % GetScreenWidth()), (float)(rand() % GetScreenHeight())} });
-        }
-    }
-
-    for (const Obstacle& o : obstacles) {
-        if (CheckCollisionCircles(snake.front().position, 5, o.position, 5)) {
-            gameOver = true;
-        }
-    }
+// 移動方向を角度で回転させる関数
+Vector2 RotateVector(Vector2 vector, float angle) {
+    float cosA = cos(angle);
+    float sinA = sin(angle);
+    return { vector.x * cosA - vector.y * sinA, vector.x * sinA + vector.y * cosA };
 }
-
-static void DrawGame(const std::vector<SnakeSegment>& snake, const std::vector<Food>& food, const std::vector<Obstacle>& obstacles) {
-    for (const auto& s : snake) {
-        if (&s == &snake.front()) {
-            DrawCircleV(s.position, 5, PINK);  // 先頭をピンクに描画
-        }
-        else {
-            DrawCircleV(s.position, 5, GREEN);
-        }
-    }
-
-    for (const auto& f : food) {
-        if (f.active) {
-            DrawCircleV(f.position, 5, RED);
-        }
-    }
-
-    for (const auto& o : obstacles) {
-        DrawCircleV(o.position, 5, DARKGRAY);
-    }
-
-    DrawText(TextFormat("Score: %i", score), 10, 10, 20, WHITE);
-
-    if (gameOver) {
-        DrawText("GAME OVER !", GetScreenWidth() / 2 - MeasureText("GAME OVER !", 64) / 2, GetScreenHeight() / 2 - 64, 64, RED);
-        DrawText("Press R to Retry", GetScreenWidth() / 2 - MeasureText("Press R to Retry", 32) / 2, GetScreenHeight() / 2 + 16, 32, RED);
-    }
-}
-
-
-static void UpdateDrawFrame() {
-    if (IsKeyPressed(KEY_R)) {
-        InitGame(snake, food, obstacles);
-    }
-
-    UpdateGame(snake, food, obstacles);
-
-    BeginDrawing();
-    ClearBackground(BLACK);  // バックグラウンドを黒に設定
-    DrawGame(snake, food, obstacles);
-    EndDrawing();
-}
-
 
 int main() {
-    InitWindow(800, 600, "Snake Game");
+    // ウィンドウの初期化
+    InitWindow(screenWidth, screenHeight, "Snake Game - Moving Head");
 
-
-    InitGame(snake, food, obstacles);
-
-#if defined(PLATFORM_WEB)
-    emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
-#else
+    // フレームレートの設定
     SetTargetFPS(60);
+
+    // 初期の移動方向（右方向）
+    Vector2 direction = { 1.0f, 0.0f };
+
+    // ゲームループ
     while (!WindowShouldClose()) {
-        UpdateDrawFrame();
+        // マウス位置の取得
+        Vector2 mousePosition = GetMousePosition();
+
+        // マウスがボールの移動方向に対して左右どちらにあるか判定
+        float side = CheckMouseSide(ballPosition, direction, mousePosition);
+
+        // 移動方向の回転
+        if (side > 0) {
+            direction = RotateVector(direction, turnAngle); // 右に回転
+        }
+        else if (side < 0) {
+            direction = RotateVector(direction, -turnAngle); // 左に回転
+        }
+
+        // ボールの移動
+        ballPosition.x += direction.x * ballSpeed;
+        ballPosition.y += direction.y * ballSpeed;
+
+        // 描画
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        DrawCircleV(ballPosition, ballRadius, DARKGREEN);
+
+        if (side > 0) {
+            DrawText("Mouse is on the RIGHT side", 10, 30, 20, DARKGRAY);
+        }
+        else if (side < 0) {
+            DrawText("Mouse is on the LEFT side", 10, 30, 20, DARKGRAY);
+        }
+        else {
+            DrawText("Mouse is on the LINE", 10, 30, 20, DARKGRAY);
+        }
+
+        DrawText("Move the mouse to guide the snake's head", 10, 10, 20, DARKGRAY);
+
+        EndDrawing();
     }
-#endif
 
-
+    // ウィンドウの終了処理
     CloseWindow();
+
     return 0;
 }
