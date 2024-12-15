@@ -145,36 +145,11 @@ int main() {
 
             // ゲームオーバー判定
             if (lives <= 0) {
-                BeginDrawing();
-                ClearBackground(BLACK);
-
-                DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, RED);
-                DrawText(TextFormat("Final Score: %d", score), screenWidth / 2 - 100, screenHeight / 2 + 30, 30, DARKGRAY);
-                DrawText("Press R to Retry", screenWidth / 2 - 100, screenHeight / 2 + 70, 20, DARKGRAY);
-
-                EndDrawing();
-
-                // リトライ処理
-                if (IsKeyPressed(KEY_R)) {
-                    headBallPos = { screenWidth / 2.0f, screenHeight / 2.0f };
-                    score = 0;
-                    lives = initialLives;
-                    snakeBody.clear();
-                    rocks.clear();
-                    for (int i = 0; i < initialBodySegments; i++) snakeBody.push_back(headBallPos);
-                    for (int i = 0; i < foodCount; i++) GenerateRandomFood(foods[i]);
-                    for (int i = 0; i < rockCount; i++) {
-                        Vector2 rock;
-                        GenerateRandomRock(rock);
-                        rocks.push_back(rock);
-                    }
-                }
-
                 gameOver = true;
             }
         }
 
-        // 描画
+        // 描画 ///////////////////////////////////////////////////////
         BeginDrawing();
         ClearBackground(BLACK);
 
@@ -194,6 +169,28 @@ int main() {
 
         DrawText(TextFormat("Lives: %d", lives), 10, 10, 20, WHITE);
         DrawText(TextFormat("Score: %d", score), 100, 10, 20, WHITE);
+
+        if (gameOver) {
+            DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, RED);
+            DrawText(TextFormat("Final Score: %d", score), screenWidth / 2 - 100, screenHeight / 2 + 30, 30, DARKGRAY);
+            DrawText("Press R to Retry", screenWidth / 2 - 100, screenHeight / 2 + 70, 20, DARKGRAY);
+            // リトライ処理
+            if (IsKeyPressed(KEY_R)) {
+                headBallPos = { screenWidth / 2.0f, screenHeight / 2.0f };
+                score = 0;
+                lives = initialLives;
+                snakeBody.clear();
+                rocks.clear();
+                for (int i = 0; i < initialBodySegments; i++) snakeBody.push_back(headBallPos);
+                for (int i = 0; i < foodCount; i++) GenerateRandomFood(foods[i]);
+                for (int i = 0; i < rockCount; i++) {
+                    Vector2 rock;
+                    GenerateRandomRock(rock);
+                    rocks.push_back(rock);
+                }
+                gameOver = false;
+            }
+        }
 
         EndDrawing();
     }
